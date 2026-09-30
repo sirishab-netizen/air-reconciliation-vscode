@@ -1,0 +1,3 @@
+exchange_id,booking_id,original_ticket_id,new_ticket_id,original_value,new_value,expected_additional_collection,currency,status
+EXC001,BKG003,TKT003O,TKT003N,476.1,687,210.9,USD,COMPLETED
+EXC002,BKG004,TKT004O,TKT004N,476.1,687,210.9,USD,COMPLETED

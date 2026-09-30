@@ -1,0 +1,6 @@
+pandas<3,>=2.2
+pydantic<3,>=2.7
+
+[dev]
+pytest<9,>=8
+ruff<1,>=0.6

@@ -1,0 +1,3 @@
+refund_id,booking_id,ticket_id,expected_refund,actual_refund,currency,type,note
+REF001,BKG005,TKT005,465,465,USD,FULL_REFUND,$11.10 non-refundable
+REF002,BKG006,TKT006,200,180,USD,PARTIAL_REFUND,Expected $200; actual $180
