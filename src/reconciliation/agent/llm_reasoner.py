@@ -1,8 +1,16 @@
+
+import json
+import os
+
 from dataclasses import dataclass
 from typing import Any
 from dotenv import load_dotenv
+from openai import OpenAI
+
 
 load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+model = "gpt-5.6-luna"
 
 @dataclass
 class ReasoningResult:
