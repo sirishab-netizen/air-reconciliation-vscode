@@ -1,10 +1,12 @@
 import pandas as pd
 
+from reconciliation.agent import tools
+from reconciliation.agent.llm_reasoner import LLMReasoner
 from reconciliation.agent.tools import ReconciliationTools
 from reconciliation.agent.investigator import ExceptionInvestigator
 from reconciliation.engine import reconcile_booking
 from reconciliation.agent.orchestrator import ExceptionOrchestrator
-
+from reconciliation.agent.llm_reasoner import LLMReasoner
 
 def test_reconciliation_to_investigation():
 
@@ -26,8 +28,12 @@ def test_reconciliation_to_investigation():
 
     investigator = ExceptionInvestigator(tools)
 
-    orchestrator = ExceptionOrchestrator(investigator)
+    reasoner = LLMReasoner(tools=tools)
 
+    orchestrator = ExceptionOrchestrator(
+        investigator=investigator,
+        reasoner=reasoner,
+    )
     result = reconcile_booking(
         "BKG006",
         bookings,

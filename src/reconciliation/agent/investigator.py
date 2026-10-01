@@ -358,83 +358,89 @@ class ExceptionInvestigator:
     def _investigate_conflict(
         self,
         case: InvestigationCase,
-    ):
-
-        invoice = self.tools.get_invoice(case.booking_id)
+    ) -> InvestigationCase:
         booking = self.tools.get_booking(case.booking_id)
-        settlement = self.tools.get_settlement(case.booking_id)
+        tickets = self.tools.get_ticket(case.booking_id)
+        invoices = self.tools.get_invoice(case.booking_id)
+        settlements = self.tools.get_settlement(case.booking_id)
 
         case.investigation_steps.extend(
             [
                 "Retrieved booking record",
+                "Retrieved ticket records",
                 "Retrieved invoice records",
                 "Retrieved settlement records",
             ]
         )
 
-        invoice_totals = {}
-
-        for row in invoice:
-            invoice_id = row["invoice_id"]
-
-            invoice_totals.setdefault(
-                invoice_id,
-                Decimal("0"),
+        booking_total = (
+            Decimal(str(booking["booking_total"]))
+            if booking and booking.get("booking_total") is not None
+            else None
+        )
+        ticket_total = (
+            Decimal(str(tickets[0]["ticket_total"]))
+            if tickets and tickets[0].get("ticket_total") is not None
+            else None
+        )
+        settlement_total = (
+            sum(
+                (Decimal(str(row["amount"])) for row in settlements),
+                Decimal("0.00"),
             )
-
-            invoice_totals[invoice_id] += Decimal(
-                str(row["amount"])
-            )
-
-        for invoice_id, total in invoice_totals.items():
-            case.findings.append(
-                f"{invoice_id} total = ${total:.2f}"
-            )
-
-        if booking:
-            case.findings.append(
-                f"Booking total = "
-                f"${Decimal(str(booking['booking_total'])):.2f}"
-            )
-
-        if settlement:
-            settlement_total = sum(
-                Decimal(str(row["amount"]))
-                for row in settlement
-            )
-
-            case.findings.append(
-                f"Settlement total = "
-                f"${settlement_total:.2f}"
-            )
-
-        case.hypothesis = (
-            "Multiple invoice records contain conflicting "
-            "financial totals."
+            if settlements
+            else None
         )
 
-        case.confidence = "HIGH"
+        invoice_totals: dict[str, Decimal] = {}
+        for row in invoices:
+            invoice_id = str(row.get("invoice_id", "UNKNOWN"))
+            invoice_totals[invoice_id] = invoice_totals.get(
+                invoice_id, Decimal("0.00")
+            ) + Decimal(str(row.get("amount", 0) or 0))
 
+        case.evidence.extend(
+            [
+                f"Booking total: {booking_total}",
+                f"Ticket total: {ticket_total}",
+                f"Invoice totals: {invoice_totals}",
+                f"Settlement total: {settlement_total}",
+            ]
+        )
+
+        if booking_total is not None:
+            case.findings.append(f"Booking total is ${booking_total:.2f}.")
+        if ticket_total is not None:
+            case.findings.append(f"Ticket total is ${ticket_total:.2f}.")
+        if settlement_total is not None:
+            case.findings.append(
+                f"Settlement total is ${settlement_total:.2f}."
+            )
+        for invoice_id, invoice_total in invoice_totals.items():
+            case.findings.append(
+                f"Invoice {invoice_id} component total is ${invoice_total:.2f}."
+            )
+
+        distinct_invoice_totals = set(invoice_totals.values())
+        if len(distinct_invoice_totals) > 1:
+            case.hypothesis = (
+                "The booking has multiple invoices with different financial "
+                "totals. The available evidence does not identify which "
+                "invoice is authoritative."
+            )
+            case.finding_confidence = "HIGH"
+        else:
+            case.hypothesis = (
+                "Conflicting financial records were identified, but the "
+                "available evidence is insufficient to determine their source."
+            )
+            case.finding_confidence = "MEDIUM"
+
+        case.root_cause_confidence = "LOW"
         case.recommendation = (
-            "Determine the authoritative invoice and route "
-            "the case for human approval before reconciliation."
+            "Verify the invoice records against the authoritative invoicing "
+            "system and route for human review before any financial adjustment."
         )
-
         case.requires_human_approval = True
 
-    def build_evidence_bundle(
-        tools,
-        booking_id: str,
-        exception_type: str,
-    ) -> dict:
-
-        evidence = {
-            "booking": tools.get_booking(booking_id),
-            "tickets": tools.get_ticket(booking_id),
-            "invoices": tools.get_invoice(booking_id),
-            "settlements": tools.get_settlement(booking_id),
-            "refunds": tools.get_refund(booking_id),
-            "exchanges": tools.get_exchange(booking_id),
-    }
-
-        return evidence 
+        return case
